@@ -29,7 +29,8 @@ type Vote struct {
 }
 
 type Comment struct {
-	Username int       `json:"author"`  // ID пользователя
-	Text     string    `json:"comment"` // Текст коментария
-	Created  time.Time `json:"created"` // Дата создания коментария
+	ID      int       `json:"id"`
+	Author  User      `json:"author"`  // ID пользователя
+	Body    string    `json:"body"`    // Текст комментария
+	Created time.Time `json:"created"` // Дата создания комментария
 }
