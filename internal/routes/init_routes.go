@@ -47,3 +47,5 @@ func InitRoutes(userHandler *handler.UserHandler) *http.ServeMux {
 
 	return r
 }
+
+//для mr
