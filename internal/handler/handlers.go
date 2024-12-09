@@ -309,7 +309,7 @@ func (h *UserHandler) Unvote(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) DeleteComment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	postIDStr := vars["POST_ID"] // Получаем идентификатор поста из URL
+	postIDStr := vars["POST_ID"]
 	commentIDStr := vars["COMMENT_ID"]
 	post := h.service.DeleteComment(r.Context(), postIDStr, commentIDStr)
 	json.NewEncoder(w).Encode(post)
