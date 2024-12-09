@@ -189,6 +189,7 @@ func (m *MemoryStorage) AddComment(postID int, comment *models.Comment) *models.
 	for _, post := range m.Posts {
 		if post.ID == postID {
 			comment.ID = len(post.Comments)
+
 			post.Comments = append(post.Comments, *comment)
 			return post
 		}

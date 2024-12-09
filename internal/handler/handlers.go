@@ -232,11 +232,14 @@ func (h *UserHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Не удалось получить ID автора", http.StatusUnauthorized)
 		return
 	}
+	userName := h.service.GetUser(r.Context(), authorID)
 	newComment.Body = newCommentDTO.Body
 	newComment.Author.ID = authorID
+	newComment.Author.Username = userName
 	newComment.Created = time.Now()
 
 	post := h.service.AddComment(r.Context(), postID, &newComment)
+	fmt.Println(post)
 
 	json.NewEncoder(w).Encode(post)
 }
