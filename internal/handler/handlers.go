@@ -198,7 +198,6 @@ func (h *UserHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
 	postID := vars["POST_ID"]
 
 	postsAfterDeletion, err := h.service.DeletePost(r.Context(), postID)
-	fmt.Println(postsAfterDeletion, postID)
 	if err != nil {
 		http.Error(w, "не удалось удалить пост", http.StatusBadRequest)
 		return
@@ -206,6 +205,10 @@ func (h *UserHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(postsAfterDeletion)
 
+}
+
+type CommentDTO struct {
+	Body string `json:"comment"`
 }
 
 func (h *UserHandler) AddComment(w http.ResponseWriter, r *http.Request) {
@@ -219,8 +222,8 @@ func (h *UserHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var newComment models.Comment
-
-	if err := json.NewDecoder(r.Body).Decode(&newComment); err != nil {
+	var newCommentDTO CommentDTO
+	if err := json.NewDecoder(r.Body).Decode(&newCommentDTO); err != nil {
 		http.Error(w, "Не удалось декодировать JSON", http.StatusBadRequest)
 		return
 	}
@@ -229,11 +232,14 @@ func (h *UserHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Не удалось получить ID автора", http.StatusUnauthorized)
 		return
 	}
-
-	newComment.Username = authorID
+	userName := h.service.GetUser(r.Context(), authorID)
+	newComment.Body = newCommentDTO.Body
+	newComment.Author.ID = authorID
+	newComment.Author.Username = userName
 	newComment.Created = time.Now()
 
 	post := h.service.AddComment(r.Context(), postID, &newComment)
+	fmt.Println(post)
 
 	json.NewEncoder(w).Encode(post)
 }
@@ -301,5 +307,13 @@ func (h *UserHandler) Unvote(w http.ResponseWriter, r *http.Request) {
 		Vote: 0,
 	}
 	post := h.service.UpdateVote(r.Context(), postID, &newVote)
+	json.NewEncoder(w).Encode(post)
+}
+
+func (h *UserHandler) DeleteComment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	postIDStr := vars["POST_ID"]
+	commentIDStr := vars["COMMENT_ID"]
+	post := h.service.DeleteComment(r.Context(), postIDStr, commentIDStr)
 	json.NewEncoder(w).Encode(post)
 }

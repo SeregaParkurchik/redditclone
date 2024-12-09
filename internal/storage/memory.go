@@ -21,7 +21,8 @@ type Interface interface {
 	DeletePost(postID string) ([]*models.Post, error)
 	UpdateVote(postID int, vote *models.Vote) *models.Post
 	AddComment(postID int, comment *models.Comment) *models.Post
-	//GetUser(userID int) string
+	DeleteComment(postID string, commentID string) *models.Post
+	GetUser(userID int) string
 }
 
 type MemoryStorage struct {
@@ -39,7 +40,7 @@ func NewMemoryStorage() *MemoryStorage {
 	}
 }
 
-/*func (m *MemoryStorage) GetUser(userID int) string {
+func (m *MemoryStorage) GetUser(userID int) string {
 	for _, user := range m.Users {
 		if user.ID == userID {
 			return user.Username
@@ -47,7 +48,7 @@ func NewMemoryStorage() *MemoryStorage {
 		}
 	}
 	return "0"
-}*/
+}
 
 func (m *MemoryStorage) Register(user *models.User) (string, error) {
 	m.mu.Lock()
@@ -182,8 +183,13 @@ func (m *MemoryStorage) DeletePost(postID string) ([]*models.Post, error) {
 }
 
 func (m *MemoryStorage) AddComment(postID int, comment *models.Comment) *models.Post {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	for _, post := range m.Posts {
 		if post.ID == postID {
+			comment.ID = len(post.Comments)
+
 			post.Comments = append(post.Comments, *comment)
 			return post
 		}
@@ -213,6 +219,31 @@ func (m *MemoryStorage) UpdateVote(postID int, vote *models.Vote) *models.Post {
 			}
 			post.Score = k
 			return post
+		}
+	}
+	return nil
+}
+
+func (m *MemoryStorage) DeleteComment(postID string, commentID string) *models.Post {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	postIDInt, err := strconv.Atoi(postID)
+	if err != nil {
+		return nil
+	}
+	commentIDInt, err := strconv.Atoi(commentID)
+	if err != nil {
+		return nil
+	}
+	for _, post := range m.Posts {
+		if post.ID == postIDInt {
+			for i, comment := range post.Comments {
+				if comment.ID == commentIDInt {
+					post.Comments = append(post.Comments[:i], post.Comments[i+1:]...)
+					return post
+				}
+			}
 		}
 	}
 	return nil

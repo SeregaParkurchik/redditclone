@@ -39,6 +39,7 @@ func InitRoutes(userHandler *handler.UserHandler) *http.ServeMux {
 
 	authHandler.HandleFunc("/api/posts", userHandler.NewPost).Methods("POST")
 	authHandler.HandleFunc("/api/post/{"+PostID+"}", userHandler.AddComment).Methods("POST")
+	authHandler.HandleFunc("/api/post/{"+PostID+"}/{"+CommentID+"}", userHandler.DeleteComment).Methods("DELETE")
 	authHandler.HandleFunc("/api/post/{"+PostID+"}/upvote", userHandler.Upvote).Methods("GET")
 	authHandler.HandleFunc("/api/post/{"+PostID+"}/downvote", userHandler.Downvote).Methods("GET")
 	authHandler.HandleFunc("/api/post/{"+PostID+"}/unvote", userHandler.Unvote).Methods("GET")
@@ -47,3 +48,5 @@ func InitRoutes(userHandler *handler.UserHandler) *http.ServeMux {
 
 	return r
 }
+
+//для mr

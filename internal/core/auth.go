@@ -17,7 +17,8 @@ type Interface interface {
 	DeletePost(ctx context.Context, postID string) ([]*models.Post, error)
 	UpdateVote(ctx context.Context, postID int, vote *models.Vote) *models.Post
 	AddComment(ctx context.Context, postID int, comment *models.Comment) *models.Post
-	//GetUser(ctx context.Context, userID int) string
+	DeleteComment(ctx context.Context, postID string, commentID string) *models.Post
+	GetUser(ctx context.Context, userID int) string
 }
 
 type service struct {
@@ -70,6 +71,10 @@ func (s *service) UpdateVote(ctx context.Context, postID int, vote *models.Vote)
 	return s.storage.UpdateVote(postID, vote)
 }
 
-/*func (s *service) GetUser(ctx context.Context, userID int) string {
+func (s *service) GetUser(ctx context.Context, userID int) string {
 	return s.storage.GetUser(userID)
-}*/
+}
+
+func (s *service) DeleteComment(ctx context.Context, postID string, commentID string) *models.Post {
+	return s.storage.DeleteComment(postID, commentID)
+}
