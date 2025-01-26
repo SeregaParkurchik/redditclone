@@ -1,0 +1,20 @@
+version: '3.1'
+
+services:
+  db:
+    image: postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=reddit_admin
+      - POSTGRES_DB=reddit
+      - POSTGRES_PASSWORD=qwerty
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: pg_isready
+      interval: 10s
+      timeout: 10s
+      retries: 3
+# make up - запустит контейнер PostgreSQL
+# make migrate - в другом терминале, запускает все, что есть в миграции 
+
