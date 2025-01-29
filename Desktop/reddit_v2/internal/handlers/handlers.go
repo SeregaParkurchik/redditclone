@@ -8,6 +8,7 @@ import (
 	"reddit_v2/internal/core"
 	"reddit_v2/internal/middleware"
 	"reddit_v2/internal/models"
+	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -234,6 +235,114 @@ func (h *UserHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 	post, err := h.service.AddComment(r.Context(), idPost, &newComment)
 	if err != nil {
 		http.Error(w, "Не удалось получить пост", http.StatusUnauthorized)
+		return
+	}
+
+	json.NewEncoder(w).Encode(post)
+}
+
+func (h *UserHandler) DeleteComment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	postIDStr := vars["POST_ID"]
+	commentIDStr := vars["COMMENT_ID"]
+
+	post, err := h.service.DeleteComment(r.Context(), postIDStr, commentIDStr)
+	if err != nil {
+		http.Error(w, "Не удалось получить пост", http.StatusUnauthorized)
+		return
+	}
+
+	json.NewEncoder(w).Encode(post)
+}
+
+func (h *UserHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	postID := vars["POST_ID"]
+
+	postsAfterDeletion, err := h.service.DeletePost(r.Context(), postID)
+	if err != nil {
+		http.Error(w, "не удалось удалить пост", http.StatusBadRequest)
+		return
+	}
+
+	json.NewEncoder(w).Encode(postsAfterDeletion)
+}
+
+func (h *UserHandler) Upvote(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r) // мапа [POST_ID:1]
+	idPost := vars["POST_ID"]
+	postID, err := strconv.Atoi(idPost)
+	if err != nil {
+		http.Error(w, "Неверный формат ID поста", http.StatusBadRequest)
+		return
+	}
+	authorID, ok := r.Context().Value("user_ID").(int)
+	if !ok {
+		http.Error(w, "Не удалось получить ID автора", http.StatusUnauthorized)
+		return
+	}
+
+	newVote := models.Vote{
+		User: authorID,
+		Vote: 1,
+	}
+
+	post, err := h.service.UpdateVote(r.Context(), postID, &newVote)
+	if err != nil {
+		http.Error(w, "не удалось отправить голос", http.StatusBadRequest)
+		return
+	}
+	json.NewEncoder(w).Encode(post)
+}
+
+func (h *UserHandler) Downvote(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r) // мапа [POST_ID:1]
+	idPost := vars["POST_ID"]
+	postID, err := strconv.Atoi(idPost)
+	if err != nil {
+		http.Error(w, "Неверный формат ID поста", http.StatusBadRequest)
+		return
+	}
+	authorID, ok := r.Context().Value("user_ID").(int)
+	if !ok {
+		http.Error(w, "Не удалось получить ID автора", http.StatusUnauthorized)
+		return
+	}
+
+	newVote := models.Vote{
+		User: authorID,
+		Vote: -1,
+	}
+	post, err := h.service.UpdateVote(r.Context(), postID, &newVote)
+	if err != nil {
+		http.Error(w, "не удалось отправить голос", http.StatusBadRequest)
+		return
+	}
+
+	json.NewEncoder(w).Encode(post)
+}
+
+func (h *UserHandler) Unvote(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r) // мапа [POST_ID:1]
+	idPost := vars["POST_ID"]
+	postID, err := strconv.Atoi(idPost)
+	if err != nil {
+		http.Error(w, "Неверный формат ID поста", http.StatusBadRequest)
+		return
+	}
+	authorID, ok := r.Context().Value("user_ID").(int)
+	if !ok {
+		http.Error(w, "Не удалось получить ID автора", http.StatusUnauthorized)
+		return
+	}
+
+	newVote := models.Vote{
+		User: authorID,
+		Vote: 0,
+	}
+	post, err := h.service.UpdateVote(r.Context(), postID, &newVote)
+	if err != nil {
+		http.Error(w, "не удалось отправить голос", http.StatusBadRequest)
 		return
 	}
 

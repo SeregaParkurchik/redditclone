@@ -17,7 +17,10 @@ type Interface interface {
 	GetPostsByCategory(category string) ([]*models.Post, error)
 	GetPostsByUserLogin(username string) ([]*models.Post, error)
 	GetUserName(authorID int) (string, error)
-	AddComment(postID int, comment *models.Comment) (models.Post, error)
+	AddComment(postID int, comment *models.Comment) (*models.Post, error)
+	DeleteComment(idPost int, commentID int) (*models.Post, error)
+	DeletePost(idPost int) ([]*models.Post, error)
+	UpdateVote(idPost int, vote *models.Vote) (*models.Post, error)
 }
 
 type PostgresConnConfig struct {
@@ -141,8 +144,14 @@ func (s *RedditDB) NewPost(post *models.Post) error {
 func (s *RedditDB) GetPost(post_ID int) (*models.Post, error) {
 	var post models.Post
 
+	// Увеличиваем количество просмотров на 1
+	_, err := s.conn.Exec(context.Background(), `UPDATE Posts SET views = views + 1 WHERE id = $1`, post_ID)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка при увеличении количества просмотров: %w", err)
+	}
+
 	// Получение поста
-	err := s.conn.QueryRow(context.Background(), `SELECT id, title, url, author_id, category, score, created, views, type, text FROM Posts WHERE id = $1`, post_ID).Scan(
+	err = s.conn.QueryRow(context.Background(), `SELECT id, title, url, author_id, category, score, created, views, type, text FROM Posts WHERE id = $1`, post_ID).Scan(
 		&post.ID,
 		&post.Title,
 		&post.URL,
@@ -163,7 +172,7 @@ func (s *RedditDB) GetPost(post_ID int) (*models.Post, error) {
 	}
 
 	// Получение комментариев для поста
-	rows, err := s.conn.Query(context.Background(), `SELECT id, author_id, body, created FROM Comments WHERE post_id = $1`, post_ID)
+	rows, err := s.conn.Query(context.Background(), `SELECT id, author_id, username, body, created FROM Comments WHERE post_id = $1`, post_ID)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка при получении комментариев: %w", err)
 	}
@@ -171,7 +180,7 @@ func (s *RedditDB) GetPost(post_ID int) (*models.Post, error) {
 
 	for rows.Next() {
 		var comment models.Comment
-		if err := rows.Scan(&comment.ID, &comment.Author.ID, &comment.Body, &comment.Created); err != nil {
+		if err := rows.Scan(&comment.ID, &comment.Author.ID, &comment.Author.Username, &comment.Body, &comment.Created); err != nil {
 			return nil, fmt.Errorf("ошибка при сканировании комментария: %w", err)
 		}
 		// Здесь можно добавить запрос для получения информации об авторе комментария, если это необходимо
@@ -251,28 +260,99 @@ func (s *RedditDB) GetUserName(authorID int) (string, error) {
 	return userName, nil
 }
 
-func (s *RedditDB) AddComment(postID int, comment *models.Comment) (models.Post, error) {
-	// Сначала нужно получить ID автора (предполагается, что comment.Author.ID уже установлен)
-	if comment.Author.ID == 0 {
-		return models.Post{}, fmt.Errorf("ID автора комментария не установлен")
-	}
-
+func (s *RedditDB) AddComment(postID int, comment *models.Comment) (*models.Post, error) {
 	// Вставка комментария в таблицу Comments
 	var commentID int
 	err := s.conn.QueryRow(context.Background(),
-		"INSERT INTO Comments (author_id, post_id, body) VALUES ($1, $2,$3) RETURNING id",
-		comment.Author.ID, postID, comment.Body).Scan(&commentID)
+		"INSERT INTO Comments (author_id, post_id, username, body, created) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+		comment.Author.ID, postID, comment.Author.Username, comment.Body, comment.Created).Scan(&commentID)
 	if err != nil {
-		return models.Post{}, fmt.Errorf("ошибка при вставке комментария: %w", err)
+		return nil, fmt.Errorf("ошибка при вставке комментария: %w", err)
+	}
+	post, err := s.GetPost(postID)
+	if err != nil {
+		return nil, err
 	}
 
-	// Получение поста, к которому добавлен комментарий
-	var post models.Post
-	err = s.conn.QueryRow(context.Background(), "SELECT * FROM Posts WHERE id = $1", postID).Scan(&post.ID, &post.Title, &post.URL, &post.Author.ID, &post.Category, &post.Score, &post.Created, &post.Views, &post.Type, &post.Text)
+	return post, nil
+}
+
+func (s *RedditDB) DeleteComment(idPost int, commentID int) (*models.Post, error) {
+	_, err := s.conn.Exec(context.Background(), `DELETE FROM Comments WHERE id = $1 AND post_id = $2`, commentID, idPost)
 	if err != nil {
-		return models.Post{}, fmt.Errorf("ошибка при получении поста: %w", err)
+		return nil, fmt.Errorf("ошибка при удалении комментария: %w", err)
 	}
 
-	// Возвращаем пост и nil для ошибки
+	post, err := s.GetPost(idPost)
+	if err != nil {
+		return nil, err
+	}
+	return post, nil
+}
+
+func (s *RedditDB) DeletePost(idPost int) ([]*models.Post, error) {
+	_, err := s.conn.Exec(context.Background(), `DELETE FROM Posts WHERE id = $1`, idPost)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка при удалении комментария: %w", err)
+	}
+
+	posts, err := s.GetAllPosts()
+	if err != nil {
+		return nil, err
+	}
+	return posts, nil
+}
+
+func (s *RedditDB) UpdateVote(idPost int, vote *models.Vote) (*models.Post, error) {
+	// Сначала получим пост, чтобы убедиться, что он существует
+	post, err := s.GetPost(idPost)
+	if err != nil {
+		return nil, err
+	}
+
+	// Проверяем, существует ли голос
+	var existingVote int
+	queryCheck := `
+		SELECT vote FROM Votes 
+		WHERE user_id = $1 AND post_id = $2`
+	err = s.conn.QueryRow(context.Background(), queryCheck, vote.User, idPost).Scan(&existingVote)
+
+	if err != nil && err != pgx.ErrNoRows {
+		// Если произошла ошибка, кроме ErrNoRows, возвращаем ее
+		fmt.Println(err)
+		return nil, fmt.Errorf("ошибка при проверке голоса: %w", err)
+	}
+
+	if err == pgx.ErrNoRows {
+		// Если голоса не существует, вставляем новый
+		queryInsert := `
+			INSERT INTO Votes (user_id, post_id, vote)
+			VALUES ($1, $2, $3)`
+		_, err = s.conn.Exec(context.Background(), queryInsert, vote.User, idPost, vote.Vote)
+		if err != nil {
+			fmt.Println(err)
+			return nil, fmt.Errorf("ошибка при вставке голоса: %w", err)
+		}
+	} else {
+		// Если голос существует, обновляем его
+		queryUpdate := `
+			UPDATE Votes 
+			SET vote = $1 
+			WHERE user_id = $2 AND post_id = $3`
+		_, err = s.conn.Exec(context.Background(), queryUpdate, vote.Vote, vote.User, idPost)
+		if err != nil {
+			fmt.Println(err)
+			return nil, fmt.Errorf("ошибка при обновлении голоса: %w", err)
+		}
+	}
+	postUpdate := `
+			UPDATE Posts 
+			SET score = score + $1
+			WHERE id = $2 `
+	_, err = s.conn.Exec(context.Background(), postUpdate, vote.Vote, idPost)
+	if err != nil {
+		fmt.Println(err)
+		return nil, fmt.Errorf("ошибка при обновлении голоса: %w", err)
+	}
 	return post, nil
 }

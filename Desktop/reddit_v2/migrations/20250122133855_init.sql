@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS Comments (
     id SERIAL PRIMARY KEY, -- Автоматически увеличивающийся идентификатор
     author_id INT REFERENCES Users(id) ON DELETE CASCADE, -- Внешний ключ на таблицу Users
     post_id INT REFERENCES Posts(id) ON DELETE CASCADE, -- Внешний ключ на таблицу Posts
+    username TEXT NOT NULL,
     body TEXT NOT NULL, -- Текст комментария
     created TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- Дата создания комментария
 );

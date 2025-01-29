@@ -20,7 +20,10 @@ type Interface interface {
 	GetPostsByCategory(ctx context.Context, category string) ([]*models.Post, error)
 	GetPostsByUserLogin(ctx context.Context, category string) ([]*models.Post, error)
 	GetUserName(ctx context.Context, authorID int) (string, error)
-	AddComment(ctx context.Context, idPost string, comment *models.Comment) (models.Post, error)
+	AddComment(ctx context.Context, idPost string, comment *models.Comment) (*models.Post, error)
+	DeleteComment(ctx context.Context, idPost string, commentID string) (*models.Post, error)
+	DeletePost(ctx context.Context, idPost string) ([]*models.Post, error)
+	UpdateVote(ctx context.Context, idPost int, vote *models.Vote) (*models.Post, error)
 }
 
 type service struct {
@@ -130,16 +133,58 @@ func (s *service) GetUserName(ctx context.Context, authorID int) (string, error)
 	return userName, nil
 }
 
-func (s *service) AddComment(ctx context.Context, idPost string, comment *models.Comment) (models.Post, error) {
+func (s *service) AddComment(ctx context.Context, idPost string, comment *models.Comment) (*models.Post, error) {
 	idPostINT, err := strconv.Atoi(idPost)
 
 	if err != nil {
-		return models.Post{}, err
+		return nil, err
 	}
 	post, err := s.storage.AddComment(idPostINT, comment)
 
 	if err != nil {
-		return models.Post{}, err
+		return nil, err
+	}
+
+	return post, nil
+}
+
+func (s *service) DeleteComment(ctx context.Context, idPost string, commentID string) (*models.Post, error) {
+	idPostINT, err := strconv.Atoi(idPost)
+	if err != nil {
+		return nil, err
+	}
+
+	commentIDINT, err := strconv.Atoi(commentID)
+	if err != nil {
+		return nil, err
+	}
+
+	post, err := s.storage.DeleteComment(idPostINT, commentIDINT)
+	if err != nil {
+		return nil, err
+	}
+
+	return post, nil
+}
+
+func (s *service) DeletePost(ctx context.Context, idPost string) ([]*models.Post, error) {
+	idPostINT, err := strconv.Atoi(idPost)
+	if err != nil {
+		return nil, err
+	}
+
+	posts, err := s.storage.DeletePost(idPostINT)
+	if err != nil {
+		return nil, err
+	}
+
+	return posts, nil
+}
+
+func (s *service) UpdateVote(ctx context.Context, idPost int, vote *models.Vote) (*models.Post, error) {
+	post, err := s.storage.UpdateVote(idPost, vote)
+	if err != nil {
+		return nil, err
 	}
 
 	return post, nil
