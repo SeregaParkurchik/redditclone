@@ -183,7 +183,6 @@ func (s *RedditDB) GetPost(post_ID int) (*models.Post, error) {
 		if err := rows.Scan(&comment.ID, &comment.Author.ID, &comment.Author.Username, &comment.Body, &comment.Created); err != nil {
 			return nil, fmt.Errorf("ошибка при сканировании комментария: %w", err)
 		}
-		// Здесь можно добавить запрос для получения информации об авторе комментария, если это необходимо
 		post.Comments = append(post.Comments, comment)
 	}
 

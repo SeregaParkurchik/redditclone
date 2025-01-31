@@ -14,7 +14,7 @@ import (
 func main() {
 
 	cfg := storage.PostgresConnConfig{
-		DBHost:   "localhost",
+		DBHost:   "host.docker.internal", //localhost
 		DBPort:   5432,
 		DBName:   "reddit",
 		Username: "reddit_admin",

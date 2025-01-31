@@ -15,6 +15,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 3
+
 # make up - запустит контейнер PostgreSQL
 # make migrate - в другом терминале, запускает все, что есть в миграции 
 
