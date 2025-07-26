@@ -15,5 +15,8 @@ migrate:
 
 migrate-down:
 	goose -dir migrations postgres "user=reddit_admin password=${PG_PASSWORD} dbname=reddit host=localhost port=5432 sslmode=disable" down
-
+build:
+	docker build -t web_app2:v1 .
+run:
+	docker run -d --name container1  -p 8080:8080 web_app2:v1
 # docker compose
