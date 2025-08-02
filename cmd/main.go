@@ -4,38 +4,41 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog" // Импортируем slog для логирования
 	"net/http"
+	"os" // Импортируем os для работы с стандартным выводом
+
 	"reddit_v2/internal/core"
 	"reddit_v2/internal/handlers"
+	"reddit_v2/internal/pg" // Импортируем нашу обертку
 	"reddit_v2/internal/routes"
 	"reddit_v2/internal/storage"
 )
 
 func main() {
+	// 1. Инициализация логгера
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	cfg := storage.PostgresConnConfig{
-		DBHost:   "host.docker.internal", //localhost
-		DBPort:   5432,
-		DBName:   "reddit",
-		Username: "reddit_admin",
-		Password: "qwerty",
-		Options:  nil, // или добавьте опции, если необходимо
-	}
+	// 2. Определение строки подключения
+	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s",
+		"reddit_admin", "qwerty", "host.docker.internal", 5432, "reddit",
+	)
 
-	// Создание соединения с базой данных
-	conn, err := storage.New(context.Background(), cfg)
+	// 3. Инициализация нашей обертки, которая создает пул соединений
+	dbClient, err := pg.NewDB(context.Background(), connString, logger)
 	if err != nil {
-		log.Fatalf("Не удалось подключиться к базе данных: %v", err)
+		log.Fatalf("Не удалось инициализировать обертку базы данных: %v", err)
 	}
-	defer conn.Close(context.Background())
+	defer dbClient.Close() // Закрываем пул при завершении работы приложения
 
-	// Создание экземпляра RedditDB
-	redditDB := storage.NewRedditDB(conn)
+	// 4. Создание экземпляра хранилища с использованием нашей обертки
+	redditDB := storage.NewRedditDB(dbClient)
 
-	// Создание сервиса с использованием базы данных
+	// 5. Создание сервиса и обработчиков
 	authService := core.New(redditDB)
 	userHandler := handlers.NewUserHandler(authService)
 
+	// 6. Запуск сервера
 	mux := routes.InitRoutes(userHandler)
 	fmt.Println("Запуск сервера на порту 8080 http://localhost:8080/")
 	http.ListenAndServe(":8080", mux)
